@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cost Forecasting and Anomaly Detection</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { width: 80%; margin: 0 auto; }
+        h1 { text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        table, th, td { border: 1px solid black; }
+        th, td { padding: 8px; text-align: center; }
+        button { padding: 10px 20px; cursor: pointer; }
+        .result { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cost Forecasting & Anomaly Detection</h1>
+        
+        <!-- Form to upload data -->
+        <div>
+            <h2>Upload Data</h2>
+            <input type="file" id="billingDataFile" />
+            <button onclick="uploadBillingData()">Upload Billing Data</button>
+        </div>
+        
+        <!-- Buttons to trigger actions -->
+        <div class="result">
+            <button onclick="getForecast()">Get Cost Forecast</button>
+            <button onclick="getAnomalies()">Get Anomalies</button>
+            <button onclick="optimizeResources()">Optimize Resources</button>
+        </div>
+
+        <div id="output"></div>
+    </div>
+
+    <script>
+        let billingData = [];
+
+        // Handle file upload
+        function uploadBillingData() {
+            const file = document.getElementById('billingDataFile').files[0];
+            if (!file) {
+                alert("Please upload a file.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    billingData = JSON.parse(e.target.result);
+                } catch (error) {
+                    alert("Error parsing data. Please upload a valid JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Fetch cost forecast data from backend
+        function getForecast() {
+            if (!billingData.length) {
+                alert("Please upload billing data first.");
+                return;
+            }
+
+            fetch('/api/forecast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(billingData)
+            })
+            .then(response => response.json())
+            .then(data => displayResult(data, 'Forecast'))
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Fetch anomalies data from backend
+        function getAnomalies() {
+            if (!billingData.length) {
+                alert("Please upload billing data first.");
+                return;
+            }
+
+            fetch('/api/anomalies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(billingData)
+            })
+            .then(response => response.json())
+            .then(data => displayResult(data, 'Anomalies'))
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Fetch optimization suggestions from backend
+        function optimizeResources() {
+            if (!billingData.length) {
+                alert("Please upload billing data first.");
+                return;
+            }
+
+            fetch('/api/optimize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(billingData)
+            })
+            .then(response => response.json())
+            .then(data => displayResult(data, 'Optimization'))
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Display results in a table
+        function displayResult(data, resultType) {
+            let outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = `<h2>${resultType} Results</h2>`;
+
+            if (data.message) {
+                outputDiv.innerHTML += `<p>${data.message}</p>`;
+                return;
+            }
+
+            let table = '<table><tr>';
+            for (let key in data[0]) {
+                table += `<th>${key}</th>`;
+            }
+            table += '</tr>';
+
+            data.forEach(row => {
+                table += '<tr>';
+                for (let key in row) {
+                    table += `<td>${row[key]}</td>`;
+                }
+                table += '</tr>';
+            });
+            table += '</table>';
+
+            outputDiv.innerHTML += table;
+        }
+    </script>
+</body>
+</html>
