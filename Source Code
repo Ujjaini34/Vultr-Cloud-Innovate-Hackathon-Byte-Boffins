@@ -1,0 +1,112 @@
+import pandas as pd
+import requests
+from sklearn.ensemble import IsolationForest
+from prophet import Prophet  # Use 'fbprophet' if using an older version
+
+class DataProcessor:
+    def _init_(self, billing_api_url, usage_api_url):
+        self.billing_api_url = billing_api_url
+        self.usage_api_url = usage_api_url
+
+    def fetch_billing_data(self):
+        try:
+            response = requests.get(self.billing_api_url)
+            response.raise_for_status()
+            return pd.DataFrame(response.json())
+        except requests.RequestException as e:
+            print(f"Error fetching billing data: {e}")
+            return pd.DataFrame()
+
+    def fetch_usage_data(self):
+        try:
+            response = requests.get(self.usage_api_url)
+            response.raise_for_status()
+            return pd.DataFrame(response.json())
+        except requests.RequestException as e:
+            print(f"Error fetching usage data: {e}")
+            return pd.DataFrame()
+
+    def clean_data(self, df):
+        if df.empty:
+            print("No data to clean.")
+            return df
+
+        df = df.dropna()  # Drop rows with missing values
+        numeric_columns = df.select_dtypes(include=['number']).columns
+
+        if numeric_columns.empty:
+            print("No numeric columns found for normalization.")
+            return df
+
+        # Normalize numeric columns
+        df[numeric_columns] = (df[numeric_columns] - df[numeric_columns].min()) / (df[numeric_columns].max() - df[numeric_columns].min())
+        return df
+
+class CostForecaster:
+    def forecast_costs(self, df):
+        if 'date' not in df.columns or 'cost' not in df.columns:
+            print("Required columns ('date', 'cost') not found for forecasting.")
+            return pd.DataFrame()
+
+        df_prophet = df.rename(columns={'date': 'ds', 'cost': 'y'})
+        model = Prophet()
+        model.fit(df_prophet)
+        future = model.make_future_dataframe(periods=30)  # Predict for the next 30 days
+        forecast = model.predict(future)
+        return forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
+
+class AnomalyDetector:
+    def detect_anomalies(self, data):
+        if 'usage_metric' not in data.columns:
+            print("Column 'usage_metric' not found for anomaly detection.")
+            return pd.DataFrame()
+
+        model = IsolationForest(contamination=0.05)  # 5% of data expected as anomalies
+        model.fit(data[['usage_metric']])
+        data['anomaly'] = model.predict(data[['usage_metric']])
+        return data[data['anomaly'] == -1]  # Return only anomalies
+
+class RealTimeOptimizer:
+    def optimize_resources(self, usage_data):
+        if 'usage_metric' not in usage_data.columns:
+            print("Column 'usage_metric' not found for optimization.")
+            return []
+
+        suggestions = []
+        for index, row in usage_data.iterrows():
+            if row['usage_metric'] < 0.2:  # Example condition
+                suggestions.append(f"Consider downscaling resource at index {index}.")
+        return suggestions
+
+def main():
+    # Initialize API URLs
+    billing_api_url = 'https://api.vultr.com/v1/billing'
+    usage_api_url = 'https://api.vultr.com/v1/usage'
+    
+    # Data Processing
+    processor = DataProcessor(billing_api_url, usage_api_url)
+    billing_data = processor.fetch_billing_data()
+    usage_data = processor.fetch_usage_data()
+    
+    cleaned_billing_data = processor.clean_data(billing_data)
+    
+    # Cost Forecasting
+    forecaster = CostForecaster()
+    forecast = forecaster.forecast_costs(cleaned_billing_data)
+    if not forecast.empty:
+        print("Cost Forecast:\n", forecast)
+    
+    # Anomaly Detection
+    detector = AnomalyDetector()
+    anomalies = detector.detect_anomalies(usage_data)
+    if not anomalies.empty:
+        print("Detected Anomalies:\n", anomalies)
+    
+    # Real-Time Optimization
+    optimizer = RealTimeOptimizer()
+    optimization_suggestions = optimizer.optimize_resources(usage_data)
+    if optimization_suggestions:
+        print("Optimization Suggestions:\n", optimization_suggestions)
+
+if _name_ == "_main_":
+    main()
