@@ -1,4 +1,4 @@
-pandas
-requests
-scikit-learn
-prophet
+pandas==2.0
+requests==2.28
+scikit-learn==1.2
+prophet==2.0
