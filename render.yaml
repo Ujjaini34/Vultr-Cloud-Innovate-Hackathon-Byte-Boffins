@@ -1,5 +1,0 @@
-services:
-  - type: web
-    name: my-app
-    buildCommand: "poetry install"
-    startCommand: "poetry run python my_app.py"
